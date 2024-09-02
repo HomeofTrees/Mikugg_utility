@@ -74,6 +74,26 @@ def checkConsistency(jsonObj):
 			continue
 		print(f"WARN: Following response is used in narration but has no parent response <{id}>")
 
+def fillMissingEmotions(oldjson, updatedjson):
+	#make a flat dictionary with all emotions for all outfits {id:emotions[]}
+	oldemotions = {}
+	for character in oldjson['novel']['characters']:
+		for outfit in character['card']['data']['extensions']['mikugg_v2']['outfits']:
+			outfit_id = outfit['id']
+			oldemotions[outfit_id] = outfit['emotions']
+	ii=0
+	#iterate over all characters and outfits and emotions to see if an emotion is missing (add it if missing)
+	for character in updatedjson['novel']['characters']:
+		for outfit in character['card']['data']['extensions']['mikugg_v2']['outfits']:
+			outfit_id = outfit['id']
+			emotionIDs = [ k['id'] for k in outfit['emotions'] ]
+			if outfit_id in oldemotions:
+				for oldemotion in oldemotions[outfit_id]:
+					if (oldemotion['id'] not in emotionIDs):
+						outfit['emotions'].append(oldemotion)
+	
+
+
 #################
 ##   END FUN   ##
 #################
@@ -95,12 +115,20 @@ args.new_narration.close()
 
 updatedjson = copy.deepcopy(oldjson)
 updatedjson['novel'] = copy.deepcopy(newjson['novel'])
+
+
+#assume that if objectives doesn't exist a novel is passed instead of a narration
+if 'objectives' not in newjson:
+	fillMissingEmotions(oldjson, updatedjson)
+
 try:
 	#updatedjson['inventory'] = copy.deepcopy(newjson['inventory'])
 	#updatedjson['version'] = copy.deepcopy(newjson['version'])
 	updatedjson['objectives'] = copy.deepcopy(newjson['objectives'])
 except KeyError:
 	pass
+
+
 
 
 #write updated json to file
